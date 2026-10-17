@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fast Drive 3D - O'zbekiston Avtomagistralida Poyga</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Three.js (Local or CDN Fallback) -->
+    <script src="js/three.min.js"></script>
+    <script>
+        // Fallback to CDN if local script fails
+        if (typeof THREE === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+    <!-- 3D Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- UI Overlay Root -->
+    <div id="ui-overlay">
+        <!-- Persistent Header Coins Badge -->
+        <div class="header-coins-pill">
+            <span>🪙</span>
+            <span class="total-coins-val">0</span>
+        </div>
+
+        <!-- 1. MAIN MENU -->
+        <div id="main-menu" class="screen-container">
+            <div class="main-title-wrap">
+                <h1 class="game-logo-title">FAST DRIVE</h1>
+                <p class="game-logo-subtitle">O'zbekiston Avtomagistralida 3D Poyga</p>
+            </div>
+
+            <div class="main-menu-buttons">
+                <button id="btn-play" class="btn-cyber btn-play-primary">
+                    <span>🎮</span> O'YINNI BOSHLASH
+                </button>
+                <button id="btn-garage" class="btn-cyber">
+                    <span>🚗</span> GARAJ / MASHINALAR
+                </button>
+                <button id="btn-settings" class="btn-cyber">
+                    <span>⚙️</span> SOZLAMALAR
+                </button>
+                <button id="btn-records" class="btn-cyber">
+                    <span>🏆</span> REKORDLAR
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. GARAGE SCREEN -->
+        <div id="garage-screen" class="screen-container hidden">
+            <div class="garage-top-bar">
+                <button id="btn-garage-back" class="btn-back">⬅ BOSH MENYU</button>
+                <h2 style="font-family:'Orbitron', sans-serif; font-size:1.5rem; color:#fff;">O'ZBEK MASHINALARI</h2>
+                <div style="width: 100px;"></div>
+            </div>
+
+            <!-- Left / Right 3D Carousel Arrows -->
+            <div class="garage-nav-arrows">
+                <button id="btn-garage-prev" class="garage-arrow">‹</button>
+                <button id="btn-garage-next" class="garage-arrow">›</button>
+            </div>
+
+            <!-- Bottom Floating Car Specs Card -->
+            <div class="glass-panel garage-bottom-card">
+                <div class="car-title-row">
+                    <h2 id="garage-car-name">Gentra (Lacetti)</h2>
+                </div>
+                <p id="garage-car-desc" class="car-desc">O'zbekiston ko'chalarining haqiqiy afsonasi! Qulay boshqaruv va mustahkam dvigatel.</p>
+
+                <div class="car-stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-header">
+                            <span>Maksimal Tezlik</span>
+                            <span id="garage-stat-speed-val">180 km/h</span>
+                        </div>
+                        <div class="stat-bar-track">
+                            <div id="garage-stat-speed" class="stat-bar-fill" style="width: 75%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-item">
+                        <div class="stat-header">
+                            <span>Tezlanish (0-100)</span>
+                            <span id="garage-stat-accel-val">7.5/10</span>
+                        </div>
+                        <div class="stat-bar-track">
+                            <div id="garage-stat-accel" class="stat-bar-fill" style="width: 75%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-item">
+                        <div class="stat-header">
+                            <span>Boshqaruvchanlik</span>
+                            <span id="garage-stat-handling-val">8.5/10</span>
+                        </div>
+                        <div class="stat-bar-track">
+                            <div id="garage-stat-handling" class="stat-bar-fill" style="width: 85%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-item">
+                        <div class="stat-header">
+                            <span>Nitro Quvvati</span>
+                            <span id="garage-stat-nitro-val">+30%</span>
+                        </div>
+                        <div class="stat-bar-track">
+                            <div id="garage-stat-nitro" class="stat-bar-fill" style="width: 60%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Palette -->
+                <div class="color-picker-row">
+                    <span style="font-weight:600; color:#cbd5e1; font-size:1rem;">Rangni tanlang:</span>
+                    <div id="garage-color-palette" style="display:flex; gap:10px;"></div>
+                </div>
+
+                <!-- Action Button -->
+                <button id="garage-action-btn" class="btn-garage btn-selected">
+                    ✅ TANLANGAN
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. SETTINGS SCREEN -->
+        <div id="settings-screen" class="screen-container hidden">
+            <div class="glass-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="font-family:'Orbitron', sans-serif; font-size:1.8rem; color:#fff;">⚙️ SOZLAMALAR</h2>
+                    <button id="btn-settings-back" class="btn-back">⬅ SAQLASH VA QAYTISH</button>
+                </div>
+
+                <!-- Steering Types -->
+                <div class="settings-section">
+                    <h3>🎮 RUL / BOSHQARUV TURLARI</h3>
+                    <div class="btn-group-toggle">
+                        <button class="btn-toggle btn-steering-choice active" data-type="keyboard">
+                            ⌨️ Klaviatura (WASD / Strelkalar)
+                        </button>
+                        <button class="btn-toggle btn-steering-choice" data-type="wheel">
+                            🔄 Rul G'ildiragi (Ekrandagi interaktiv rul)
+                        </button>
+                        <button class="btn-toggle btn-steering-choice" data-type="mouse">
+                            🖱️ Sichqoncha / Silliq ergashish
+                        </button>
+                        <button class="btn-toggle btn-steering-choice" data-type="touchButtons">
+                            📱 Ekran Tugmalari (Mobil)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Audio Volumes -->
+                <div class="settings-section">
+                    <h3>🔊 OVOZ VA MUSIQA SOZLAMALARI</h3>
+                    <div class="slider-row">
+                        <span>Umumiy Ovoz (Master)</span>
+                        <input type="range" id="vol-master" min="0" max="100" value="80">
+                    </div>
+                    <div class="slider-row">
+                        <span>Dvigatel Tovushi</span>
+                        <input type="range" id="vol-engine" min="0" max="100" value="60">
+                    </div>
+                    <div class="slider-row">
+                        <span>Fon Musiqasi</span>
+                        <input type="range" id="vol-music" min="0" max="100" value="45">
+                    </div>
+                    <div class="slider-row">
+                        <span>Effektlar (Tangalar, Nitro, Avariya)</span>
+                        <input type="range" id="vol-sfx" min="0" max="100" value="70">
+                    </div>
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="mute-toggle">
+                        <span>🔇 Ovozni butunlay o'chirish (Mute)</span>
+                    </label>
+                </div>
+
+                <!-- Camera & Environment -->
+                <div class="settings-section">
+                    <h3>🎥 KAMERA VA GRAFIKA</h3>
+                    <div style="margin-bottom:12px;">
+                        <span style="display:block; margin-bottom:8px; color:#cbd5e1; font-weight:600;">Kamera ko'rinishi:</span>
+                        <div class="btn-group-toggle">
+                            <button class="btn-toggle btn-camera-choice active" data-view="thirdClose">
+                                🚘 Orqadan Yaqin (Dinamik)
+                            </button>
+                            <button class="btn-toggle btn-camera-choice" data-view="thirdFar">
+                                🔭 Orqadan Uzoq (Keng burchak)
+                            </button>
+                            <button class="btn-toggle btn-camera-choice" data-view="hood">
+                                👀 Kapotdan Ko'rinish
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span style="display:block; margin-bottom:8px; color:#cbd5e1; font-weight:600;">Yo'l muhiti (Vaqt):</span>
+                        <div class="btn-group-toggle">
+                            <button class="btn-toggle btn-theme-choice active" data-theme="day">
+                                ☀️ Kunduzgi Quyosh
+                            </button>
+                            <button class="btn-toggle btn-theme-choice" data-theme="night">
+                                🌙 Tungi Neon Shahar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. RECORDS SCREEN -->
+        <div id="records-screen" class="screen-container hidden">
+            <div class="glass-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="font-family:'Orbitron', sans-serif; font-size:1.8rem; color:#ffd700;">🏆 O'YIN REKORDLARI</h2>
+                    <div style="display:flex; gap:10px;">
+                        <button id="btn-records-reset" class="btn-back" style="color:#ff5555; border-color:#ff5555;">🗑 TOZALASH</button>
+                        <button id="btn-records-back" class="btn-back">⬅ ORQAGA</button>
+                    </div>
+                </div>
+
+                <!-- Summary Badges -->
+                <div class="records-stats-summary">
+                    <div class="summary-card">
+                        <div class="label">Eng Yuqori Ball</div>
+                        <div id="rec-high-score" class="value" style="color:#ffd700;">0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">Maksimal Masofa</div>
+                        <div id="rec-max-distance" class="value">0 m</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">Eng Ko'p Tangalar</div>
+                        <div id="rec-max-coins" class="value" style="color:#ffd700;">0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">O'yinlar Soni</div>
+                        <div id="rec-games-played" class="value">0</div>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <h3 style="font-family:'Orbitron', sans-serif; font-size:1.1rem; color:var(--primary); margin-bottom:10px;">
+                    📜 OXIRGI O'YINLAR TARIXI
+                </h3>
+                <table class="records-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Sana va Vaqt</th>
+                            <th>Ball</th>
+                            <th>Masofa</th>
+                            <th>Tangalar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-table-body">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 5. IN-GAME HUD -->
+        <div id="hud-screen" class="screen-container hidden">
+            <div class="hud-top-bar">
+                <div class="hud-left-stats">
+                    <div class="hud-badge">
+                        <div class="hud-badge-title">BALL</div>
+                        <div id="hud-score-val" class="hud-badge-val">0</div>
+                    </div>
+                    <div class="hud-badge">
+                        <div class="hud-badge-title">MASOFA</div>
+                        <div id="hud-distance-val" class="hud-badge-val">0 m</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <div class="hud-coins-pill">
+                        <span>🪙</span>
+                        <span id="hud-coins-val">0</span>
+                    </div>
+                    <button id="btn-hud-pause" class="btn-pause-circle">⏸</button>
+                </div>
+            </div>
+
+            <!-- Near Miss Notification Banner -->
+            <div id="near-miss-banner">
+                ⚡ YONIDAN O'TISH! +100 BALL
+            </div>
+
+            <!-- Bottom Speedometer & Nitro -->
+            <div class="hud-bottom-bar">
+                <!-- Speedometer Cluster -->
+                <div class="speedo-cluster">
+                    <div class="speedo-needle" id="speedo-needle"></div>
+                    <div class="speedo-center-pin"></div>
+                    <div id="hud-speed-val" class="speedo-digital">0</div>
+                    <div class="speedo-unit">KM / SOAT</div>
+                </div>
+
+                <!-- Nitro Cluster -->
+                <div class="nitro-cluster">
+                    <div class="nitro-header">
+                        <span>NITRO BOOST</span>
+                        <span>[SPACE / SHIFT]</span>
+                    </div>
+                    <div class="nitro-track">
+                        <div id="hud-nitro-bar" class="nitro-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Virtual Steering Wheel (Active if chosen in Settings) -->
+            <div id="steering-wheel-container" class="hidden">
+                <svg id="interactive-steering-wheel" viewBox="0 0 200 200">
+                    <!-- Outer Leather Rim -->
+                    <circle cx="100" cy="100" r="90" fill="none" stroke="#1e293b" stroke-width="16" />
+                    <circle cx="100" cy="100" r="90" fill="none" stroke="#00d4ff" stroke-width="3" stroke-dasharray="10 8" opacity="0.7"/>
+                    <!-- Spokes -->
+                    <line x1="100" y1="100" x2="15" y2="100" stroke="#334155" stroke-width="14" stroke-linecap="round"/>
+                    <line x1="100" y1="100" x2="185" y2="100" stroke="#334155" stroke-width="14" stroke-linecap="round"/>
+                    <line x1="100" y1="100" x2="100" y2="185" stroke="#334155" stroke-width="14" stroke-linecap="round"/>
+                    <!-- Center Hub -->
+                    <circle cx="100" cy="100" r="32" fill="#0f172a" stroke="#00d4ff" stroke-width="3" />
+                    <!-- Emblem -->
+                    <text x="100" y="105" text-anchor="middle" fill="#00d4ff" font-family="'Orbitron', sans-serif" font-weight="900" font-size="14">UZB</text>
+                    <!-- Top Steering Center Marker (Red Stripe) -->
+                    <rect x="96" y="2" width="8" height="16" fill="#ff0055" rx="2" />
+                </svg>
+            </div>
+
+            <!-- Touch Screen Buttons for Mobile -->
+            <div id="touch-controls-container" class="hidden">
+                <div class="touch-cluster">
+                    <button id="btn-touch-left" class="btn-touch">◀</button>
+                    <button id="btn-touch-right" class="btn-touch">▶</button>
+                </div>
+                <div class="touch-cluster">
+                    <button id="btn-touch-brake" class="btn-touch" style="border-color:#ff5500;">🛑</button>
+                    <button id="btn-touch-gas" class="btn-touch" style="border-color:#10b981;">⚡</button>
+                    <button id="btn-touch-nitro" class="btn-touch btn-touch-nitro">🚀</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. PAUSE MODAL -->
+        <div id="pause-modal" class="screen-container modal-backdrop hidden">
+            <div class="glass-panel modal-card">
+                <h2 class="modal-title" style="color:var(--primary);">⏸ O'YIN TO'XTATILDI</h2>
+                <div style="display:flex; flex-direction:column; gap:14px; margin-top:20px;">
+                    <button id="btn-pause-resume" class="btn-cyber btn-play-primary">
+                        ▶ DAVOM ETTIRISH
+                    </button>
+                    <button id="btn-pause-restart" class="btn-cyber">
+                        🔄 QAYTADAN BOSHLASH
+                    </button>
+                    <button id="btn-pause-menu" class="btn-cyber">
+                        🏠 BOSH MENYU
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. GAME OVER MODAL -->
+        <div id="game-over-modal" class="screen-container modal-backdrop hidden">
+            <div class="glass-panel modal-card">
+                <h2 class="modal-title" style="color:#ff0055;">💥 TO'QNASHUV!</h2>
+                <div id="go-new-record-badge" class="new-record-pill hidden">
+                    🏆 YANGI ENG YUQORI REKORD!
+                </div>
+
+                <div class="go-stats-box">
+                    <div class="go-stat-pill">
+                        <div class="lbl">To'plangan Ball</div>
+                        <div id="go-score" class="val" style="color:#ffd700;">0</div>
+                    </div>
+                    <div class="go-stat-pill">
+                        <div class="lbl">Masofa</div>
+                        <div id="go-distance" class="val">0 m</div>
+                    </div>
+                    <div class="go-stat-pill">
+                        <div class="lbl">Yig'ilgan Tangalar</div>
+                        <div id="go-coins" class="val" style="color:#ffd700;">+0</div>
+                    </div>
+                    <div class="go-stat-pill">
+                        <div class="lbl">Avtomobil</div>
+                        <div id="go-car-name" class="val" style="font-size:1.15rem; color:#00d4ff;">Gentra</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    <button id="btn-go-restart" class="btn-cyber btn-play-primary">
+                        🔄 QAYTADAN O'YNASH
+                    </button>
+                    <div style="display:flex; gap:12px;">
+                        <button id="btn-go-garage" class="btn-cyber" style="flex:1;">
+                            🚗 GARAJ
+                        </button>
+                        <button id="btn-go-menu" class="btn-cyber" style="flex:1;">
+                            🏠 BOSH MENYU
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Scripts -->
+    <script src="js/audio.js"></script>
+    <script src="js/cars.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/traffic.js"></script>
+    <script src="js/records.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
