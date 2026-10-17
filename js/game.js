@@ -153,7 +153,7 @@ class FastDriveGame {
 
         this.playerX = 0;
         this.playerZ = 0;
-        this.playerSpeed = 0;
+        this.playerSpeed = 60; // Start at smooth 60 km/h cruising speed
         this.nitroAmount = 100;
         this.score = 0;
         this.distance = 0;
@@ -237,7 +237,7 @@ class FastDriveGame {
         // Nitro handling
         if (this.isNitroActive && this.nitroAmount > 0) {
             effectiveMaxSpeed *= this.nitroPower;
-            effectiveAccel *= 1.8;
+            effectiveAccel *= 2.0;
             this.nitroAmount = Math.max(0, this.nitroAmount - 32 * delta);
             window.soundManager.playNitro();
 
@@ -248,21 +248,27 @@ class FastDriveGame {
             this.world.createNitroFlame(exhaustPos);
         } else {
             // Nitro passive recharge
-            this.nitroAmount = Math.min(100, this.nitroAmount + 6 * delta);
+            this.nitroAmount = Math.min(100, this.nitroAmount + 8 * delta);
         }
 
-        // Speed calculation
+        // Speed calculation (Highway arcade physics)
         if (isAccelerating) {
-            this.playerSpeed += effectiveAccel * 6.5 * delta;
+            this.playerSpeed += effectiveAccel * 8.5 * delta;
         } else if (isBraking) {
-            this.playerSpeed -= 28.0 * delta; // Sharp braking
+            this.playerSpeed -= 32.0 * delta; // Sharp responsive braking
             window.soundManager.playBrake();
         } else {
-            // Natural drag / rolling friction
-            this.playerSpeed -= 6.0 * delta;
+            // Natural highway cruise: coast smoothly toward 65 km/h
+            const cruiseTarget = 65;
+            if (this.playerSpeed > cruiseTarget) {
+                this.playerSpeed -= 8.0 * delta;
+            } else if (this.playerSpeed < cruiseTarget) {
+                this.playerSpeed += 12.0 * delta;
+            }
         }
 
-        this.playerSpeed = Math.max(0, Math.min(effectiveMaxSpeed, this.playerSpeed));
+        // Speed boundaries: minimum 20 km/h on highway, maximum effectiveMaxSpeed
+        this.playerSpeed = Math.max(isBraking ? 15 : 45, Math.min(effectiveMaxSpeed, this.playerSpeed));
 
         // Update Sound Pitch
         const speedRatio = this.playerSpeed / this.playerMaxSpeed;
@@ -271,14 +277,15 @@ class FastDriveGame {
         // Taillights braking glow
         if (this.playerCarGroup.userData.taillights) {
             this.playerCarGroup.userData.taillights.forEach(tl => {
-                tl.material.emissiveIntensity = isBraking ? 2.5 : 0.7;
+                tl.material.emissiveIntensity = isBraking ? 2.8 : 0.7;
             });
         }
 
         // Lateral Steering Movement
-        const speedFactor = Math.min(1.0, this.playerSpeed / 30); // Need speed to turn
-        const lateralMove = this.steerInput * this.playerHandling * 1.8 * speedFactor * delta;
-        this.playerX += lateralMove; // Standard steering response (+X is right, -X is left)
+        // Responsive steering even at lower speeds:
+        const speedFactor = Math.max(0.4, Math.min(1.0, this.playerSpeed / 40));
+        const lateralMove = this.steerInput * this.playerHandling * 2.2 * speedFactor * delta;
+        this.playerX += lateralMove; // +X moves LEFT on screen, -X moves RIGHT on screen
 
         // Clamp to highway boundaries
         this.playerX = Math.max(-this.roadLimitX, Math.min(this.roadLimitX, this.playerX));
@@ -300,7 +307,10 @@ class FastDriveGame {
         const targetRoll = -this.steerInput * 0.08 * speedFactor;
         this.carRoll = THREE.MathUtils.lerp(this.carRoll, targetRoll, 8.0 * delta);
         this.playerCarGroup.rotation.z = this.carRoll;
-        this.playerCarGroup.rotation.y = -this.steerInput * 0.08 * speedFactor;
+
+        // Visual Heading turn (Points toward the turn direction)
+        const targetHeading = this.steerInput * 0.12 * speedFactor;
+        this.playerCarGroup.rotation.y = THREE.MathUtils.lerp(this.playerCarGroup.rotation.y, targetHeading, 10.0 * delta);
 
         // Wheel Rotations
         const wheelCircumference = 2 * Math.PI * 0.36;
@@ -312,9 +322,9 @@ class FastDriveGame {
             });
         }
 
-        // Front wheels turn angle
+        // Front wheels turn angle (turns toward the turn direction)
         if (this.playerCarGroup.userData.frontWheels) {
-            this.wheelTurnAngle = THREE.MathUtils.lerp(this.wheelTurnAngle, -this.steerInput * 0.45, 10 * delta);
+            this.wheelTurnAngle = THREE.MathUtils.lerp(this.wheelTurnAngle, this.steerInput * 0.45, 12 * delta);
             this.playerCarGroup.userData.frontWheels.forEach(wAnchor => {
                 wAnchor.rotation.y = this.wheelTurnAngle;
             });
@@ -324,20 +334,46 @@ class FastDriveGame {
     readInputs() {
         const steeringType = window.settingsManager.steeringType;
 
-        // 1. Keyboard Inputs
+        // 1. Multi-layout Keyboard Inputs (QWERTY, Cyrillic, Arrows)
         let keySteer = 0;
         let keyThrottle = 0;
         let keyNitro = false;
 
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) keySteer -= 1;
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) keySteer += 1;
-        if (this.keys['KeyW'] || this.keys['ArrowUp']) keyThrottle = 1;
-        if (this.keys['KeyS'] || this.keys['ArrowDown']) keyThrottle = -1;
-        if (this.keys['Space'] || this.keys['ShiftLeft'] || this.keys['ShiftRight']) keyNitro = true;
+        const isLeft = !!(
+            this.keys['KeyA'] || this.keys['ArrowLeft'] ||
+            this.keys['a'] || this.keys['A'] ||
+            this.keys['ф'] || this.keys['Ф']
+        );
+        const isRight = !!(
+            this.keys['KeyD'] || this.keys['ArrowRight'] ||
+            this.keys['d'] || this.keys['D'] ||
+            this.keys['в'] || this.keys['В']
+        );
+        const isGas = !!(
+            this.keys['KeyW'] || this.keys['ArrowUp'] ||
+            this.keys['w'] || this.keys['W'] ||
+            this.keys['ц'] || this.keys['Ц']
+        );
+        const isBrake = !!(
+            this.keys['KeyS'] || this.keys['ArrowDown'] ||
+            this.keys['s'] || this.keys['S'] ||
+            this.keys['ы'] || this.keys['Ы']
+        );
+        const isNitro = !!(
+            this.keys['Space'] || this.keys['ShiftLeft'] || this.keys['ShiftRight'] ||
+            this.keys[' '] || this.keys['shift']
+        );
+
+        if (isLeft) keySteer += 1;   // Move toward screen LEFT (+X)
+        if (isRight) keySteer -= 1;  // Move toward screen RIGHT (-X)
+        if (isGas) keyThrottle = 1;
+        if (isBrake) keyThrottle = -1;
+        if (isNitro) keyNitro = true;
 
         if (steeringType === 'wheel') {
             // Steering Wheel input normalized (-90 deg to +90 deg -> -1 to 1)
-            this.steerInput = Math.max(-1, Math.min(1, this.steeringWheelAngle / 85));
+            // Clockwise rotation (right) -> -X (screen right)
+            this.steerInput = -Math.max(-1, Math.min(1, this.steeringWheelAngle / 85));
             this.throttleInput = keyThrottle !== 0 ? keyThrottle : (this.touchGaz ? 1 : (this.touchBrake ? -1 : 0));
             this.isNitroActive = keyNitro || this.touchNitro;
         } else if (steeringType === 'touchButtons') {
@@ -346,8 +382,9 @@ class FastDriveGame {
             this.isNitroActive = this.touchNitro;
         } else if (steeringType === 'mouse') {
             // Mouse pointer position across window width
+            // Right of screen -> -X (screen right)
             if (this.mouseXNormalized !== undefined) {
-                this.steerInput = this.mouseXNormalized;
+                this.steerInput = -this.mouseXNormalized;
             }
             this.throttleInput = keyThrottle !== 0 ? keyThrottle : 1; // Auto gas with mouse unless S pressed
             this.isNitroActive = keyNitro || this.mouseNitro;
@@ -566,15 +603,36 @@ class FastDriveGame {
 
     // 9. Input Event Listeners
     initInputListeners() {
+        const gameKeysToPrevent = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+
         window.addEventListener('keydown', e => {
+            // Prevent browser scroll on arrow keys and space during gameplay
+            if (this.gameState === 'PLAYING' && (gameKeysToPrevent.includes(e.code) || gameKeysToPrevent.includes(e.key) || e.key === ' ')) {
+                e.preventDefault();
+            }
+
             this.keys[e.code] = true;
+            if (e.key) {
+                this.keys[e.key] = true;
+                this.keys[e.key.toLowerCase()] = true;
+            }
+
             if (e.code === 'Escape' && this.gameState === 'PLAYING') {
                 this.pauseGame();
             }
-        });
+        }, { passive: false });
 
         window.addEventListener('keyup', e => {
             this.keys[e.code] = false;
+            if (e.key) {
+                this.keys[e.key] = false;
+                this.keys[e.key.toLowerCase()] = false;
+            }
+        });
+
+        // Reset key states on window blur to prevent keys getting stuck
+        window.addEventListener('blur', () => {
+            this.keys = {};
         });
 
         // Mouse steering tracking
@@ -648,8 +706,8 @@ class FastDriveGame {
         }
 
         // On-screen Touch Controls (Left, Right, Gas, Brake, Nitro)
-        this.bindTouchButton('btn-touch-left', (pressed) => { this.touchSteer = pressed ? -1 : 0; });
-        this.bindTouchButton('btn-touch-right', (pressed) => { this.touchSteer = pressed ? 1 : 0; });
+        this.bindTouchButton('btn-touch-left', (pressed) => { this.touchSteer = pressed ? 1 : 0; });
+        this.bindTouchButton('btn-touch-right', (pressed) => { this.touchSteer = pressed ? -1 : 0; });
         this.bindTouchButton('btn-touch-gas', (pressed) => { this.touchGaz = pressed; });
         this.bindTouchButton('btn-touch-brake', (pressed) => { this.touchBrake = pressed; });
         this.bindTouchButton('btn-touch-nitro', (pressed) => { this.touchNitro = pressed; });
