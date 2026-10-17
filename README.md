@@ -2,6 +2,8 @@
 
 **Fast Drive 3D** — bu zamonaviy WebGL va Three.js texnologiyasiga asoslangan, to'liq o'zbek tilidagi 3D avtomagistral poyga o'yini.
 
+🌐 **Onlayn O'ynash (Live Demo)**: [https://bobomurod-ai.github.io/fast-drive-3d/](https://bobomurod-ai.github.io/fast-drive-3d/)
+
 ---
 
 ## 🌟 Asosiy Imkoniyatlar va Xususiyatlar
